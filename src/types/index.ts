@@ -18,11 +18,6 @@ export interface LoginResponse {
 
 export interface RegisterResponse extends User {}
 
-// --- AJUSTE AQUI: Espelhando a Entidade do Backend ---
-//
-
-export type EventCategory = string; // O backend usa string livre por enquanto
-
 export enum EventStatus {
   RASCUNHO = "rascunho",
   PUBLICADO = "publicado",
@@ -34,29 +29,36 @@ export interface Event {
   id: string;
   titulo: string;
   descricao: string;
-  local: string;          // Backend usa 'local', não 'localizacao'
+  local: string;
   categoria: string;
-  data_inicio: string;    // Backend usa 'data_inicio'
-  data_fim: string;       // Backend tem 'data_fim'
-  carga_horaria: number;
+  data_inicio: string;
+  data_fim?: string;
+  carga_horaria?: number;
   
   status: EventStatus;
-  max_inscricoes: number; // Backend usa 'max_inscricoes'
+  max_inscricoes: number;
   inscricao_aberta: boolean;
   banner_url?: string;
   
   organizador_id: string;
   
-  // Propriedades relacionais (podem vir ou não dependendo da query)
+  // ESTA LINHA É CRUCIAL PARA CORRIGIR O ERRO EM [ID]/PAGE.TSX
   inscricoes?: any[]; 
-  total_inscritos?: number; // Se você computar isso no front baseando no array
+  
+  total_inscritos?: number;
+  _count?: {
+    registrations: number;
+  };
   
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
 }
 
-export interface GetEventsParams {
-  nome?: string;      // Backend filtra por 'nome' (via query param), mas na entidade é titulo. O controller mapeia? 
-                      // O Controller mapeia req.query.nome -> filters.nome.
-  categoria?: string;
+export interface CreateEventDTO {
+  titulo: string;
+  descricao: string;
+  data_inicio: string;
+  local: string;
+  max_inscricoes: number;
+  categoria: string;
 }
