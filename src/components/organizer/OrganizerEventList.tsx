@@ -30,7 +30,7 @@ import { useMyEvents, usePublishEvent, useToggleRegistrations } from "@/hooks/ap
 import { EventStatus } from "@/types";
 
 export function OrganizerEventList() {
-  // Adicionamos isError para tratar falhas de API
+  // Capturando também isError, que é o provável motivo da quebra
   const { data: events, isLoading, isError } = useMyEvents();
   const { mutate: publishEvent } = usePublishEvent();
   const { mutate: toggleRegistrations } = useToggleRegistrations();
@@ -44,20 +44,25 @@ export function OrganizerEventList() {
     );
   }
 
-  // --- NOVO TRATAMENTO DE ERRO DE API ---
+  // Se houver erro na API, mostramos uma mensagem de feedback
   if (isError) {
     return (
       <div className="text-center py-10 border border-destructive bg-red-50/50 rounded-lg">
         <p className="text-destructive font-medium">
-          Erro ao carregar seus eventos. Verifique a conexão com o backend ou se você tem permissão.
+          Erro ao carregar seus eventos. Verifique se o backend está rodando e se você está logado corretamente.
+        </p>
+        <p className="text-sm text-red-700 mt-1">
+          (Pode ser um erro de permissão ou a API não retornou uma lista válida.)
         </p>
       </div>
     );
   }
-  // ------------------------------------
-
-  // Trata o caso de lista vazia (eventos válidos, mas zero itens)
-  if (!events || events.length === 0) {
+  
+  // CORREÇÃO FINAL DA LÓGICA:
+  // Se 'events' não for um array, ou se for um array vazio, mostramos a mensagem.
+  const eventList = Array.isArray(events) ? events : [];
+  
+  if (eventList.length === 0) {
     return (
       <div className="text-center py-10 border border-dashed rounded-lg">
         <p className="text-muted-foreground">Você ainda não criou nenhum evento.</p>
@@ -80,8 +85,8 @@ export function OrganizerEventList() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {/* O map agora é seguro, pois já verificamos isLoading e isError acima */}
-          {events.map((event) => (
+          {/* Agora usamos eventList, que é garantidamente um array */}
+          {eventList.map((event) => (
             <TableRow key={event.id}>
               <TableCell className="font-medium">{event.titulo}</TableCell>
               <TableCell>

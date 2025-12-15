@@ -1,4 +1,4 @@
-import { api } from '@/lib/axios';
+import { api } from '@/lib/api-old';
 import { LoginResponse, RegisterResponse } from '@/types';
 import { LoginFormData, RegisterFormData } from '@/schemas/auth-schemas';
 

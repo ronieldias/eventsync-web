@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/lib/axios';
+import { api } from '@/lib/api-old';
 
 export interface MyRegistration {
   inscricao_id: string; // CORREÇÃO: Antes era 'id', agora é 'inscricao_id'

@@ -43,7 +43,6 @@ export interface Event {
   
   organizador_id: string;
   
-  // CORREÇÃO: MANTENDO ESTA PROPRIEDADE PARA COMPATIBILIDADE COM event-card e [id]/page.tsx
   inscricoes?: any[]; 
   
   total_inscritos?: number;
@@ -62,4 +61,10 @@ export interface CreateEventDTO {
   local: string;
   max_inscricoes: number;
   categoria: string;
+}
+
+// CORREÇÃO: Adicionando o tipo exportado que estava faltando
+export interface GetEventsParams {
+  nome?: string;
+  categoria?: string;
 }

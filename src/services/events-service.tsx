@@ -1,4 +1,4 @@
-import { api } from '@/lib/axios';
+import { api } from '@/lib/api-old';
 import { Event, GetEventsParams } from '@/types';
 
 export const eventsService = {

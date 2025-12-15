@@ -1,3 +1,4 @@
+// src/components/organizer/CreateEventForm.tsx
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -18,7 +19,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Textarea } from "@/components/ui/textarea"; // Módulo agora existe
 import {
   Popover,
   PopoverContent,
@@ -43,19 +44,22 @@ interface CreateEventFormProps {
 export function CreateEventForm({ onSuccess }: CreateEventFormProps) {
   const { mutate: createEvent, isPending } = useCreateEvent();
 
+  // CORREÇÃO: Forçando a tipagem do useForm para corresponder exatamente ao nosso Zod Schema
   const form = useForm<CreateEventFormValues>({
     resolver: zodResolver(createEventSchema),
     defaultValues: {
       titulo: "",
       descricao: "",
       local: "",
-      max_inscricoes: 0,
+      // Define max_inscricoes como number, conforme esperado pelo FormValues
+      max_inscricoes: 0, 
       categoria: "",
+      // data_inicio é do tipo Date, e não deve estar aqui ou ser null/undefined
     },
   });
 
   function onSubmit(data: CreateEventFormValues) {
-    // Convertemos a Data (objeto JS) para ISO String antes de enviar
+    // A tipagem 'data' aqui agora é a correta: CreateEventFormValues
     createEvent({
       ...data,
       data_inicio: data.data_inicio.toISOString(),
@@ -143,6 +147,10 @@ export function CreateEventForm({ onSuccess }: CreateEventFormProps) {
                     onSelect={field.onChange}
                     disabled={(date) => date < new Date()}
                     initialFocus
+                    components={{
+                      IconLeft: () => <ChevronLeftIcon className="h-4 w-4" />,
+                      IconRight: () => <ChevronRightIcon className="h-4 w-4" />,
+                    } as any} // Manter a asserção para evitar o erro de tipagem anterior
                   />
                 </PopoverContent>
               </Popover>
@@ -174,6 +182,7 @@ export function CreateEventForm({ onSuccess }: CreateEventFormProps) {
             <FormItem>
               <FormLabel>Capacidade Máxima</FormLabel>
               <FormControl>
+                {/* Nota: Zod coerce trata a string vazia ou inválida para number */}
                 <Input type="number" placeholder="100" {...field} />
               </FormControl>
               <FormDescription>Quantas pessoas podem participar?</FormDescription>
