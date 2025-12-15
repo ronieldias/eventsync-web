@@ -1,8 +1,7 @@
+// src/components/shared/header.tsx
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
 import { LogOut, User as UserIcon, Home, Calendar } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -15,40 +14,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { User } from '@/types';
+import { useAuthContext } from '@/providers/auth-provider'; // <--- Importe o hook
 
 export function Header() {
-  const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [mounted, setMounted] = useState(false);
+  // Agora usamos o contexto global. Se 'user' mudar lá, aqui atualiza automaticamente.
+  const { user, signOut } = useAuthContext(); 
 
-  // Recupera o usuário do localStorage ao carregar a página
-  useEffect(() => {
-    setMounted(true);
-    const storedUser = localStorage.getItem('xe_user');
-    const token = localStorage.getItem('xe_auth_token');
-    
-    if (storedUser && token) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (e) {
-        console.error("Erro ao processar dados do usuário", e);
-      }
-    }
-  }, []);
-
-  function handleLogout() {
-    localStorage.removeItem('xe_auth_token');
-    localStorage.removeItem('xe_user');
-    setUser(null);
-    router.push('/login');
-    router.refresh();
-  }
-
-  // Evita renderização incorreta no servidor (Hydration Mismatch)
-  if (!mounted) return <header className="h-16 border-b bg-background" />;
-
-  // Pega as iniciais do nome para o Avatar (ex: Roniel Dias -> RD)
+  // Pega as iniciais do nome para o Avatar
   const initials = user?.nome
     ? user.nome.split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase()
     : 'U';
@@ -84,7 +56,6 @@ export function Header() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                     <Avatar className="h-10 w-10 border border-slate-200 dark:border-slate-800">
-                      {/* Se o backend mandar foto, coloque aqui: user.foto_url */}
                       <AvatarImage src="" alt={user.nome} />
                       <AvatarFallback className="bg-primary/10 text-primary font-bold">
                         {initials}
@@ -108,7 +79,6 @@ export function Header() {
                     <span>Meu Perfil</span>
                   </DropdownMenuItem>
                   
-                  {/* Se for organizador, mostra link para Dashboard */}
                   {user.role === 'organizer' && (
                      <DropdownMenuItem asChild className="cursor-pointer">
                        <Link href="/dashboard">
@@ -119,7 +89,7 @@ export function Header() {
                   )}
                   
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="text-red-600 cursor-pointer focus:text-red-600">
+                  <DropdownMenuItem onClick={signOut} className="text-red-600 cursor-pointer focus:text-red-600">
                     <LogOut className="mr-2 h-4 w-4" />
                     <span>Sair</span>
                   </DropdownMenuItem>

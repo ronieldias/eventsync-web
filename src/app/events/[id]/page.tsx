@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent } from '@/components/ui/card';
+import { useAuthContext } from '@/providers/auth-provider'; // No topo
 
 export default function EventDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -24,7 +25,7 @@ export default function EventDetailsPage({ params }: { params: Promise<{ id: str
   const { mutate: subscribe, isPending: isSubscribing } = useSubscribe();
   const { mutate: cancelSubscription, isPending: isCanceling } = useCancelSubscription();
 
-  const isLoggedIn = typeof window !== 'undefined' && !!localStorage.getItem('xe_auth_token');
+  const { isAuthenticated: isLoggedIn } = useAuthContext(); // Dentro do componente
   const isLoading = isLoadingEvent || (isLoggedIn && isLoadingRegs);
 
   // Procura a inscrição ativa deste usuário neste evento

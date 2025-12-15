@@ -1,3 +1,4 @@
+// src/components/auth/login-form.tsx
 'use client';
 
 import { useForm } from 'react-hook-form';
@@ -19,10 +20,12 @@ import { Input } from '@/components/ui/input';
 import { useLogin } from '@/hooks/api/use-auth';
 import { loginSchema, LoginFormData } from '@/schemas/auth-schemas';
 import { UserRole } from '@/types';
+import { useAuthContext } from '@/providers/auth-provider'; // <--- Importe o hook
 
 export function LoginForm() {
   const router = useRouter();
   const { mutate: login, isPending } = useLogin();
+  const { signIn } = useAuthContext(); // <--- Use o contexto
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -32,7 +35,9 @@ export function LoginForm() {
   function onSubmit(data: LoginFormData) {
     login(data, {
       onSuccess: (response) => {
-        localStorage.setItem('xe_auth_token', response.token);
+        // AQUI ESTAVA O ERRO: Faltava salvar o usuário e atualizar o estado
+        signIn(response.user, response.token); 
+        
         toast.success('Login realizado!');
         
         if (response.user.role === UserRole.ORGANIZER) {
@@ -47,6 +52,7 @@ export function LoginForm() {
     });
   }
 
+  // ... (o resto do return permanece igual)
   return (
     <div className="grid gap-6">
       <Form {...form}>
@@ -90,4 +96,4 @@ export function LoginForm() {
       </div>
     </div>
   );
-} 
+}
