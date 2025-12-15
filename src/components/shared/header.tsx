@@ -1,8 +1,7 @@
-// src/components/shared/header.tsx
 'use client';
 
 import Link from 'next/link';
-import { LogOut, User as UserIcon, Home, Calendar } from 'lucide-react';
+import { LogOut, User as UserIcon, Home, Calendar, LayoutDashboard } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -14,11 +13,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useAuthContext } from '@/providers/auth-provider'; // <--- Importe o hook
+import { useAuthContext } from '@/providers/auth-provider';
 
 export function Header() {
-  // Agora usamos o contexto global. Se 'user' mudar lá, aqui atualiza automaticamente.
-  const { user, signOut } = useAuthContext(); 
+  const { user, signOut } = useAuthContext();
 
   // Pega as iniciais do nome para o Avatar
   const initials = user?.nome
@@ -29,7 +27,7 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         
-        {/* LADO ESQUERDO: Botão Home / Logo */}
+        {/* LADO ESQUERDO: Botão Home / Logo e Navegação Principal */}
         <div className="flex items-center gap-6">
           <Link 
             href="/" 
@@ -41,6 +39,19 @@ export function Header() {
             </div>
             <span className="hidden sm:inline-block">EventSync</span>
           </Link>
+
+          {/* ADICIONADO: Navegação para Dashboard (Apenas Organizadores) */}
+          {user?.role === 'organizer' && (
+            <nav className="hidden md:flex items-center gap-4">
+               <Link 
+                href="/dashboard" 
+                className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary flex items-center gap-2"
+              >
+                <LayoutDashboard className="h-4 w-4" />
+                Dashboard
+              </Link>
+            </nav>
+          )}
         </div>
 
         {/* LADO DIREITO: Menu do Usuário ou Login */}
@@ -79,6 +90,7 @@ export function Header() {
                     <span>Meu Perfil</span>
                   </DropdownMenuItem>
                   
+                  {/* Link redundante no menu (opcional, mas bom para mobile) */}
                   {user.role === 'organizer' && (
                      <DropdownMenuItem asChild className="cursor-pointer">
                        <Link href="/dashboard">
