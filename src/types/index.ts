@@ -1,3 +1,4 @@
+// src/types/index.ts
 export enum UserRole {
   USER = 'user',
   ORGANIZER = 'organizer',
@@ -42,7 +43,7 @@ export interface Event {
   
   organizador_id: string;
   
-  // ESTA LINHA É CRUCIAL PARA CORRIGIR O ERRO EM [ID]/PAGE.TSX
+  // CORREÇÃO: MANTENDO ESTA PROPRIEDADE PARA COMPATIBILIDADE COM event-card e [id]/page.tsx
   inscricoes?: any[]; 
   
   total_inscritos?: number;

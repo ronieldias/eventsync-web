@@ -1,3 +1,4 @@
+// src/app/dashboard/page.tsx
 "use client";
 
 import { useState } from "react";
@@ -15,21 +16,20 @@ import {
 } from "@/components/ui/dialog";
 import { OrganizerEventList } from "@/components/organizer/OrganizerEventList";
 import { CreateEventForm } from "@/components/organizer/CreateEventForm";
-// Importe seu hook de autenticação (ajuste o caminho se necessário)
-import { useAuth } from "@/hooks/useAuth"; 
+// CORREÇÃO: Usando o hook de autenticação correto
+import { useAuthContext } from "@/providers/auth-provider"; 
+import { UserRole } from "@/types";
 
 export default function DashboardPage() {
-  const { user, isLoading } = useAuth(); 
+  const { user, isAuthenticated } = useAuthContext(); 
   const router = useRouter();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const isLoading = !user && !isAuthenticated; // Lógica simplificada de carregamento inicial
 
-  // Proteção de Rota (Simples)
-  // Verifica se não está carregando e se usuário não é ORGANIZER
-  if (!isLoading) {
-    if (!user || user.role !== "organizer") {
-      router.push("/login"); 
-      return null;
-    }
+  // Proteção de Rota 
+  if (!isLoading && (!user || user.role !== UserRole.ORGANIZER)) {
+    router.push("/login"); 
+    return null;
   }
 
   if (isLoading) {

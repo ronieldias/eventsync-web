@@ -1,3 +1,4 @@
+// src/components/organizer/OrganizerEventList.tsx
 "use client";
 
 import { format } from "date-fns";
@@ -29,7 +30,8 @@ import { useMyEvents, usePublishEvent, useToggleRegistrations } from "@/hooks/ap
 import { EventStatus } from "@/types";
 
 export function OrganizerEventList() {
-  const { data: events, isLoading } = useMyEvents();
+  // Adicionamos isError para tratar falhas de API
+  const { data: events, isLoading, isError } = useMyEvents();
   const { mutate: publishEvent } = usePublishEvent();
   const { mutate: toggleRegistrations } = useToggleRegistrations();
 
@@ -42,10 +44,24 @@ export function OrganizerEventList() {
     );
   }
 
+  // --- NOVO TRATAMENTO DE ERRO DE API ---
+  if (isError) {
+    return (
+      <div className="text-center py-10 border border-destructive bg-red-50/50 rounded-lg">
+        <p className="text-destructive font-medium">
+          Erro ao carregar seus eventos. Verifique a conexão com o backend ou se você tem permissão.
+        </p>
+      </div>
+    );
+  }
+  // ------------------------------------
+
+  // Trata o caso de lista vazia (eventos válidos, mas zero itens)
   if (!events || events.length === 0) {
     return (
       <div className="text-center py-10 border border-dashed rounded-lg">
         <p className="text-muted-foreground">Você ainda não criou nenhum evento.</p>
+        <p className="text-sm text-muted-foreground mt-1">Use o botão "Criar Novo Evento" para começar.</p>
       </div>
     );
   }
@@ -64,6 +80,7 @@ export function OrganizerEventList() {
           </TableRow>
         </TableHeader>
         <TableBody>
+          {/* O map agora é seguro, pois já verificamos isLoading e isError acima */}
           {events.map((event) => (
             <TableRow key={event.id}>
               <TableCell className="font-medium">{event.titulo}</TableCell>
@@ -83,7 +100,7 @@ export function OrganizerEventList() {
                  <div className="flex items-center gap-2">
                     <Switch 
                         checked={event.inscricao_aberta}
-                        onCheckedChange={(checked) => toggleRegistrations({ id: event.id, open: checked })}
+                        onCheckedChange={(checked: boolean) => toggleRegistrations({ id: event.id, open: checked })}
                         disabled={event.status === EventStatus.RASCUNHO} 
                     />
                     <span className="text-xs text-muted-foreground">
@@ -94,7 +111,6 @@ export function OrganizerEventList() {
               <TableCell>
                 <div className="flex items-center gap-1">
                   <Users className="h-4 w-4 text-muted-foreground" />
-                  {/* Usa total_inscritos se vier da API, ou 0 */}
                   <span>{event.total_inscritos || 0} / {event.max_inscricoes}</span>
                 </div>
               </TableCell>
