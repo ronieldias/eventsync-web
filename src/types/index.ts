@@ -24,6 +24,7 @@ export enum EventStatus {
   PUBLICADO = "publicado",
   ENCERRADO = "encerrado",
   CANCELADO = "cancelado",
+  ARQUIVADO = "arquivado"
 }
 
 export interface Event {

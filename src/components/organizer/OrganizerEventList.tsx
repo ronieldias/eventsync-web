@@ -4,6 +4,7 @@
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { MoreHorizontal, Users, ArrowUpCircle } from "lucide-react";
+import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -27,14 +28,14 @@ import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { useMyEvents, usePublishEvent, useToggleRegistrations } from "@/hooks/api/organizer";
-import { useAuthContext } from "@/providers/auth-provider"; // **NOVO IMPORT**
+import { useAuthContext } from "@/providers/auth-provider"; 
 import { EventStatus } from "@/types";
 
 export function OrganizerEventList() {
-  const { user } = useAuthContext(); // **CORREÇÃO:** Obtendo o usuário logado
-  const organizerId = user?.id || ''; // Extrai o ID do usuário
+  const { user } = useAuthContext(); 
+  const organizerId = user?.id || ''; 
 
-  // **CORREÇÃO:** Passando o ID para o hook
+  // Esta chamada agora usa o endpoint /events/my-events
   const { data: events, isLoading, isError } = useMyEvents(organizerId); 
   const { mutate: publishEvent } = usePublishEvent();
   const { mutate: toggleRegistrations } = useToggleRegistrations();
@@ -74,6 +75,22 @@ export function OrganizerEventList() {
     );
   }
 
+  const getStatusBadge = (status: EventStatus) => {
+    switch (status) {
+      case EventStatus.PUBLICADO:
+        return <Badge variant="default" className="bg-green-600 hover:bg-green-600">Publicado</Badge>;
+      case EventStatus.RASCUNHO:
+        return <Badge variant="secondary" className="hover:bg-gray-200">Rascunho</Badge>;
+      case EventStatus.ENCERRADO: 
+        return <Badge className="bg-blue-600 hover:bg-blue-600">Encerrado</Badge>;
+      case EventStatus.ARQUIVADO: 
+        return <Badge variant="outline" className="text-gray-500">Arquivado</Badge>;
+      case EventStatus.CANCELADO:
+      default:
+        return <Badge variant="destructive" className="hover:bg-red-500">Cancelado</Badge>;
+    }
+  };
+
   return (
     <div className="rounded-md border">
       <Table>
@@ -95,20 +112,15 @@ export function OrganizerEventList() {
                 {format(new Date(event.data_inicio), "dd/MM/yyyy", { locale: ptBR })}
               </TableCell>
               <TableCell>
-                {event.status === EventStatus.PUBLICADO ? (
-                  <Badge variant="default" className="bg-green-600">Publicado</Badge>
-                ) : event.status === EventStatus.RASCUNHO ? (
-                  <Badge variant="secondary">Rascunho</Badge>
-                ) : (
-                  <Badge variant="destructive">Cancelado</Badge>
-                )}
+                {getStatusBadge(event.status)}
               </TableCell>
               <TableCell>
                  <div className="flex items-center gap-2">
                     <Switch 
                         checked={event.inscricao_aberta}
                         onCheckedChange={(checked: boolean) => toggleRegistrations({ id: event.id, open: checked })}
-                        disabled={event.status === EventStatus.RASCUNHO} 
+                        // Apenas eventos publicados podem ter o status de inscrição alterado
+                        disabled={event.status !== EventStatus.PUBLICADO} 
                     />
                     <span className="text-xs text-muted-foreground">
                         {event.inscricao_aberta ? 'Abertas' : 'Fechadas'}
@@ -118,7 +130,7 @@ export function OrganizerEventList() {
               <TableCell>
                 <div className="flex items-center gap-1">
                   <Users className="h-4 w-4 text-muted-foreground" />
-                  <span>{event.total_inscritos || 0} / {event.max_inscricoes}</span>
+                  <span>{event.total_inscritos || 0} / {event.max_inscricoes > 0 ? event.max_inscricoes : '∞'}</span>
                 </div>
               </TableCell>
               <TableCell className="text-right">
@@ -138,11 +150,22 @@ export function OrganizerEventList() {
                         </DropdownMenuItem>
                     )}
 
-                    <DropdownMenuItem>Ver Detalhes</DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem className="text-blue-600 font-medium">
-                        Ver Lista de Inscritos
+                    <DropdownMenuItem asChild>
+                      <Link href={`/events/${event.id}`}>
+                        Ver Detalhes
+                      </Link>
                     </DropdownMenuItem>
+                    
+                    {/* Exibir "Ver Lista de Inscritos" apenas se não for rascunho */}
+                    {event.status !== EventStatus.RASCUNHO && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="text-blue-600 font-medium">
+                            Ver Lista de Inscritos
+                        </DropdownMenuItem>
+                      </>
+                    )}
+
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>

@@ -5,15 +5,15 @@ import { Event, CreateEventDTO } from "@/types";
 import { toast } from "sonner";
 
 // Listar eventos SOMENTE do organizador logado
-export function useMyEvents(organizerId: string) { // **CORREÇÃO:** Recebe o ID do organizador
+export function useMyEvents(organizerId: string) { 
   return useQuery<Event[]>({
     // Adiciona o ID na queryKey para revalidação correta
     queryKey: ["my-events", organizerId], 
     queryFn: async () => {
       if (!organizerId) return []; // Previne a chamada se o ID não estiver disponível
 
-      // **CORREÇÃO:** Usando o ID real do organizador na rota /events/:id
-      const { data } = await api.get(`/events/${organizerId}`);
+      // CORREÇÃO: Usando o endpoint unificado /events/my-events
+      const { data } = await api.get('/events/my-events');
       return data;
     },
     // A query só é habilitada se tiver um organizerId
@@ -53,6 +53,7 @@ export function usePublishEvent() {
     onSuccess: () => {
       toast.success("Evento publicado!");
       queryClient.invalidateQueries({ queryKey: ["my-events"] });
+      queryClient.invalidateQueries({ queryKey: ["event-by-id"] });
     },
     onError: () => toast.error("Erro ao publicar evento."),
   });
@@ -64,14 +65,55 @@ export function useToggleRegistrations() {
 
   return useMutation({
     mutationFn: async ({ id, open }: { id: string; open: boolean }) => {
-      // Ajuste o endpoint conforme sua API
-      const { data } = await api.patch(`/events/${id}/registrations`, { inscricao_aberta: open });
+      // Usando o endpoint e corpo corretos: PATCH /events/:id/toggle-inscriptions
+      const { data } = await api.patch(`/events/${id}/toggle-inscriptions`, { status: open });
       return data;
     },
     onSuccess: (_, variables) => {
       toast.success(variables.open ? "Inscrições abertas!" : "Inscrições encerradas!");
       queryClient.invalidateQueries({ queryKey: ["my-events"] });
+      queryClient.invalidateQueries({ queryKey: ["event-by-id"] });
     },
     onError: () => toast.error("Erro ao alterar status das inscrições."),
+  });
+}
+
+// NOVO: Finalizar Evento (necessário para a próxima etapa, já incluído aqui)
+export function useFinalizeEvent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (eventId: string) => {
+      const { data } = await api.patch(`/events/${eventId}/finalize`);
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("Evento encerrado com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ["my-events"] });
+      queryClient.invalidateQueries({ queryKey: ["event-by-id"] }); 
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.error || "Erro ao encerrar evento.";
+      toast.error(errorMessage);
+    },
+  });
+}
+
+// NOVO: Arquivar Evento (necessário para a próxima etapa, já incluído aqui)
+export function useArchiveEvent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (eventId: string) => {
+      const { data } = await api.patch(`/events/${eventId}/archive`);
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("Evento arquivado com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ["my-events"] });
+      queryClient.invalidateQueries({ queryKey: ["event-by-id"] }); 
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.error || "Erro ao arquivar evento.";
+      toast.error(errorMessage);
+    },
   });
 }

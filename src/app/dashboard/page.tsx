@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/dialog";
 import { OrganizerEventList } from "@/components/organizer/OrganizerEventList";
 import { CreateEventForm } from "@/components/organizer/CreateEventForm";
-// CORREÇÃO: Usando o hook de autenticação correto
 import { useAuthContext } from "@/providers/auth-provider"; 
 import { UserRole } from "@/types";
 
