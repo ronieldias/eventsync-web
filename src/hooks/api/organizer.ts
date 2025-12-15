@@ -1,17 +1,23 @@
+// src/hooks/api/organizer.ts
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api"; 
 import { Event, CreateEventDTO } from "@/types";
 import { toast } from "sonner";
 
 // Listar eventos SOMENTE do organizador logado
-export function useMyEvents() {
+export function useMyEvents(organizerId: string) { // **CORREÇÃO:** Recebe o ID do organizador
   return useQuery<Event[]>({
-    queryKey: ["my-events"],
+    // Adiciona o ID na queryKey para revalidação correta
+    queryKey: ["my-events", organizerId], 
     queryFn: async () => {
-      // Ajuste a rota conforme seu backend (ex: /events/organizer ou /events/me)
-      const { data } = await api.get("/events/organizer");
+      if (!organizerId) return []; // Previne a chamada se o ID não estiver disponível
+
+      // **CORREÇÃO:** Usando o ID real do organizador na rota /events/:id
+      const { data } = await api.get(`/events/${organizerId}`);
       return data;
     },
+    // A query só é habilitada se tiver um organizerId
+    enabled: !!organizerId, 
   });
 }
 

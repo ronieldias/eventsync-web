@@ -27,11 +27,15 @@ import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { useMyEvents, usePublishEvent, useToggleRegistrations } from "@/hooks/api/organizer";
+import { useAuthContext } from "@/providers/auth-provider"; // **NOVO IMPORT**
 import { EventStatus } from "@/types";
 
 export function OrganizerEventList() {
-  // Capturando também isError, que é o provável motivo da quebra
-  const { data: events, isLoading, isError } = useMyEvents();
+  const { user } = useAuthContext(); // **CORREÇÃO:** Obtendo o usuário logado
+  const organizerId = user?.id || ''; // Extrai o ID do usuário
+
+  // **CORREÇÃO:** Passando o ID para o hook
+  const { data: events, isLoading, isError } = useMyEvents(organizerId); 
   const { mutate: publishEvent } = usePublishEvent();
   const { mutate: toggleRegistrations } = useToggleRegistrations();
 
@@ -58,8 +62,7 @@ export function OrganizerEventList() {
     );
   }
   
-  // CORREÇÃO FINAL DA LÓGICA:
-  // Se 'events' não for um array, ou se for um array vazio, mostramos a mensagem.
+  // Se 'events' não for um array, ou se for um array vazio, mostra a mensagem.
   const eventList = Array.isArray(events) ? events : [];
   
   if (eventList.length === 0) {
@@ -85,7 +88,6 @@ export function OrganizerEventList() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {/* Agora usamos eventList, que é garantidamente um array */}
           {eventList.map((event) => (
             <TableRow key={event.id}>
               <TableCell className="font-medium">{event.titulo}</TableCell>
