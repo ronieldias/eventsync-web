@@ -61,6 +61,8 @@ export interface CreateEventDTO {
   local: string;
   max_inscricoes: number;
   categoria: string;
+  //Adicionado data_fim, já que o backend exige.
+  data_fim: string; 
 }
 
 // CORREÇÃO: Adicionando o tipo exportado que estava faltando

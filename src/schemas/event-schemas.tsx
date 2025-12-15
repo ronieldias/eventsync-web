@@ -4,17 +4,38 @@ import { z } from "zod";
 export const createEventSchema = z.object({
   titulo: z.string().min(5, "O título deve ter pelo menos 5 caracteres"),
   descricao: z.string().min(10, "A descrição deve ter pelo menos 10 caracteres"),
-  // CORREÇÃO: Usando a sintaxe de erro mais segura para o z.date()
+  
   data_inicio: z.date({
-    message: "A data do evento é obrigatória."
+    message: "A data de início é obrigatória."
   }).refine((date) => date > new Date(), {
-    message: "A data do evento deve ser no futuro",
-  }) as z.ZodDate, // Adiciona asserção de tipo para garantir que o RHF o trate como um objeto de data válido
+    message: "A data de início deve ser no futuro",
+  }),
+  
+  data_fim: z.date({
+    message: "A data de término é obrigatória."
+  }),
+  
+  // NOVO CAMPO OBRIGATÓRIO: Carga Horária
+  carga_horaria: z.string()
+    .min(1, "A carga horária deve ser de pelo menos 1 hora.")
+    .refine((val) => !isNaN(Number(val)) && Number(val) > 0, {
+        message: "A carga horária deve ser um número positivo.",
+    }),
   
   local: z.string().min(3, "Localização é obrigatória"),
-  // Mantido coerce.number() e default(0) para compatibilidade com RHF
-  max_inscricoes: z.coerce.number().min(1, "Deve haver pelo menos 1 vaga").default(0), 
+  
+  max_inscricoes: z.string()
+    .min(1, "A capacidade deve ser de pelo menos 1.")
+    .refine((val) => !isNaN(Number(val)) && Number(val) > 0 && Number.isInteger(Number(val)), {
+        message: "O número de vagas deve ser um número inteiro positivo.",
+    }),
+    
   categoria: z.string().min(1, "Selecione uma categoria"),
+})
+// VALIDAÇÃO DE OBJETO: data_fim não pode ser anterior à data_inicio
+.refine((data) => data.data_fim >= data.data_inicio, {
+  message: "A data de término não pode ser anterior à data de início.",
+  path: ["data_fim"],
 });
 
 export type CreateEventFormValues = z.infer<typeof createEventSchema>;
