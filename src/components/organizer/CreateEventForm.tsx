@@ -1,9 +1,10 @@
 // src/components/organizer/CreateEventForm.tsx
 "use client";
 
+// CORREÇÃO: Importando TODOS os ícones necessários em um único lugar
+import { CalendarIcon, Loader2, ChevronLeftIcon, ChevronRightIcon, Plus } from "lucide-react"; 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CalendarIcon, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -19,7 +20,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea"; // Módulo agora existe
+import { Textarea } from "@/components/ui/textarea"; 
 import {
   Popover,
   PopoverContent,
@@ -44,22 +45,20 @@ interface CreateEventFormProps {
 export function CreateEventForm({ onSuccess }: CreateEventFormProps) {
   const { mutate: createEvent, isPending } = useCreateEvent();
 
-  // CORREÇÃO: Forçando a tipagem do useForm para corresponder exatamente ao nosso Zod Schema
+  // A tipagem estrita aqui resolve os erros de Resolver/Control
   const form = useForm<CreateEventFormValues>({
     resolver: zodResolver(createEventSchema),
     defaultValues: {
       titulo: "",
       descricao: "",
       local: "",
-      // Define max_inscricoes como number, conforme esperado pelo FormValues
       max_inscricoes: 0, 
       categoria: "",
-      // data_inicio é do tipo Date, e não deve estar aqui ou ser null/undefined
     },
   });
 
+  // A tipagem aqui é inferida corretamente pela RHF, resolvendo os erros de SubmitHandler
   function onSubmit(data: CreateEventFormValues) {
-    // A tipagem 'data' aqui agora é a correta: CreateEventFormValues
     createEvent({
       ...data,
       data_inicio: data.data_inicio.toISOString(),
@@ -150,7 +149,7 @@ export function CreateEventForm({ onSuccess }: CreateEventFormProps) {
                     components={{
                       IconLeft: () => <ChevronLeftIcon className="h-4 w-4" />,
                       IconRight: () => <ChevronRightIcon className="h-4 w-4" />,
-                    } as any} // Manter a asserção para evitar o erro de tipagem anterior
+                    } as any}
                   />
                 </PopoverContent>
               </Popover>
@@ -182,7 +181,6 @@ export function CreateEventForm({ onSuccess }: CreateEventFormProps) {
             <FormItem>
               <FormLabel>Capacidade Máxima</FormLabel>
               <FormControl>
-                {/* Nota: Zod coerce trata a string vazia ou inválida para number */}
                 <Input type="number" placeholder="100" {...field} />
               </FormControl>
               <FormDescription>Quantas pessoas podem participar?</FormDescription>
