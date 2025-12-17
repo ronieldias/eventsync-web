@@ -1,241 +1,421 @@
-'use client';
+"use client";
 
-import { use } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { CalendarIcon, MapPinIcon, UsersIcon, ArrowLeftIcon, Clock } from 'lucide-react';
-import { toast } from 'sonner';
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { Header } from "@/components/layouts/Header";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toast";
+import { useAuth } from "@/hooks/useAuth";
+import { api } from "@/services/api";
+import {
+  Event,
+  EVENT_STATUS_LABELS,
+  EVENT_STATUS_COLORS,
+  Subscriber,
+} from "@/types";
+import { cn } from "@/lib/utils";
 
-import { useEvent, useSubscribe, useCancelSubscription } from '@/hooks/api/events';
-import { useMyRegistrations } from '@/hooks/api/registrations';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Separator } from '@/components/ui/separator';
-import { Card, CardContent } from '@/components/ui/card';
-import { useAuthContext } from '@/providers/auth-provider'; // No topo
-
-export default function EventDetailsPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function EventPage() {
+  const params = useParams();
   const router = useRouter();
-  
-  const { data: event, isLoading: isLoadingEvent, isError } = useEvent(id);
-  const { data: myRegistrations, isLoading: isLoadingRegs, refetch: refetchMyRegs } = useMyRegistrations();
-  
-  const { mutate: subscribe, isPending: isSubscribing } = useSubscribe();
-  const { mutate: cancelSubscription, isPending: isCanceling } = useCancelSubscription();
+  const { showToast } = useToast();
+  const { user, isAuthenticated } = useAuth();
 
-  const { isAuthenticated: isLoggedIn } = useAuthContext(); // Dentro do componente
-  const isLoading = isLoadingEvent || (isLoggedIn && isLoadingRegs);
+  const [event, setEvent] = useState<Event | null>(null);
+  const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubscribing, setIsSubscribing] = useState(false);
+  const [isSubscribed, setIsSubscribed] = useState(false);
 
-  // Procura a inscrição ativa deste usuário neste evento
-  const myActiveRegistration = myRegistrations?.find(
-    (reg) => reg.evento.id === id && reg.status === 'ativo'
-  );
+  const eventId = params.id as string;
 
-  const isSubscribed = !!myActiveRegistration;
+  useEffect(() => {
+    loadEvent();
+  }, [eventId]);
 
-  if (isLoading) {
-    return (
-      <div className="container mx-auto py-10 px-4 max-w-4xl space-y-8">
-        <Skeleton className="h-8 w-32" />
-        <Skeleton className="h-64 w-full rounded-xl" />
-        <div className="space-y-4">
-          <Skeleton className="h-10 w-3/4" />
-          <Skeleton className="h-4 w-full" />
-        </div>
-      </div>
-    );
+  useEffect(() => {
+    if (user) {
+      setIsSubscribed(subscribers.some((s) => s.id === user.id));
+    }
+  }, [user, subscribers]);
+
+  async function loadEvent() {
+    try {
+      const [eventRes, subscribersRes] = await Promise.all([
+        api.get<Event>(`/events/${eventId}`),
+        api.get<Subscriber[]>(`/events/${eventId}/subscribers`),
+      ]);
+      setEvent(eventRes.data);
+      setSubscribers(subscribersRes.data);
+    } catch (error) {
+      console.error("Error loading event:", error);
+      router.push("/");
+    } finally {
+      setIsLoading(false);
+    }
   }
 
-  if (isError || !event) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
-        <h1 className="text-2xl font-bold">Evento não encontrado</h1>
-        <Button asChild variant="outline">
-          <Link href="/">Voltar para Home</Link>
-        </Button>
-      </div>
-    );
-  }
-
-  function handleSubscribe() {
-    if (!isLoggedIn) {
-      router.push('/login');
+  async function handleSubscribe() {
+    if (!isAuthenticated) {
+      router.push("/auth/login");
       return;
     }
 
-    subscribe(id, {
-      onSuccess: () => {
-        toast.success('Inscrição confirmada!');
-        refetchMyRegs(); // Recarrega a lista para o botão mudar de estado
-      },
-      onError: (error: any) => {
-        const msg = error.response?.data?.error || 'Erro ao se inscrever.';
-        toast.error(msg);
-      }
-    });
+    setIsSubscribing(true);
+    try {
+      await api.post(`/events/${eventId}/subscribe`);
+      showToast("Inscrição realizada com sucesso!", "success");
+      await loadEvent();
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      showToast(err.response?.data?.message || "Erro ao se inscrever", "error");
+    } finally {
+      setIsSubscribing(false);
+    }
   }
 
-  function handleCancel() {
-    if (!myActiveRegistration) return;
-    
-    // CORREÇÃO: Usamos .inscricao_id aqui
-    const registrationId = myActiveRegistration.inscricao_id; 
-
-    if (!confirm('Tem certeza que deseja cancelar sua inscrição?')) return;
-
-    cancelSubscription(registrationId, {
-      onSuccess: () => {
-        toast.success('Inscrição cancelada.');
-        refetchMyRegs(); // Recarrega a lista para o botão voltar a ser "Inscrever"
-      },
-      onError: () => toast.error('Erro ao cancelar.')
-    });
+  async function handleUnsubscribe() {
+    setIsSubscribing(true);
+    try {
+      await api.delete(`/events/${eventId}/subscribe`);
+      showToast("Inscrição cancelada com sucesso", "success");
+      await loadEvent();
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      showToast(err.response?.data?.message || "Erro ao cancelar inscrição", "error");
+    } finally {
+      setIsSubscribing(false);
+    }
   }
 
-  // Cálculos visuais
-  const startDate = new Date(event.data_inicio);
-  const dateFormatted = new Intl.DateTimeFormat('pt-BR', {
-    weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit',
-  }).format(startDate);
-
-  const totalInscritos = event.total_inscritos || event.inscricoes?.length || 0;
-  const hasLimit = event.max_inscricoes > 0;
-  const isSoldOut = hasLimit && totalInscritos >= event.max_inscricoes;
-  const percentage = hasLimit ? Math.min((totalInscritos / event.max_inscricoes) * 100, 100) : 0;
-
-  return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-10 px-4">
-      <div className="container mx-auto max-w-4xl">
-        <Link href="/" className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-6 transition-colors">
-          <ArrowLeftIcon className="w-4 h-4 mr-2" />
-          Voltar para eventos
-        </Link>
-
-        <div className="grid md:grid-cols-3 gap-8">
-          {/* Coluna Principal */}
-          <div className="md:col-span-2 space-y-6">
-            <div className="relative h-64 md:h-80 bg-slate-200 dark:bg-slate-800 rounded-xl flex items-center justify-center overflow-hidden">
-               {event.banner_url ? (
-                 <img src={event.banner_url} alt={event.titulo} className="w-full h-full object-cover" />
-               ) : (
-                 <span className="text-slate-400">Banner do Evento</span>
-               )}
-            </div>
-
-            <div>
-              <div className="flex gap-2 mb-4">
-                <Badge>{event.categoria || 'Geral'}</Badge>
-                {isSoldOut && !isSubscribed && <Badge variant="destructive">ESGOTADO</Badge>}
-                {!event.inscricao_aberta && !isSubscribed && <Badge variant="outline">FECHADO</Badge>}
-                {isSubscribed && <Badge variant="default" className="bg-green-600">INSCRITO</Badge>}
-              </div>
-              <h1 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2">
-                {event.titulo}
-              </h1>
-            </div>
-
-            <Separator />
-
-            <div className="prose dark:prose-invert max-w-none">
-              <h3 className="text-xl font-semibold mb-2">Sobre o evento</h3>
-              <p className="text-slate-600 dark:text-slate-300 whitespace-pre-line">
-                {event.descricao}
-              </p>
-            </div>
-          </div>
-
-          {/* Sidebar */}
-          <div className="md:col-span-1">
-            <Card className="sticky top-6">
-              <CardContent className="p-6 space-y-6">
-                <div className="space-y-4">
-                  <div className="flex items-start gap-3">
-                    <CalendarIcon className="w-5 h-5 text-primary mt-0.5" />
-                    <div>
-                      <p className="font-semibold text-sm">Data e Hora</p>
-                      <p className="text-sm text-muted-foreground capitalize">{dateFormatted}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start gap-3">
-                    <Clock className="w-5 h-5 text-primary mt-0.5" />
-                    <div>
-                      <p className="font-semibold text-sm">Carga Horária</p>
-                      <p className="text-sm text-muted-foreground">{event.carga_horaria} horas</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <MapPinIcon className="w-5 h-5 text-primary mt-0.5" />
-                    <div>
-                      <p className="font-semibold text-sm">Localização</p>
-                      <p className="text-sm text-muted-foreground">{event.local}</p>
-                    </div>
-                  </div>
-
-                  {hasLimit && (
-                    <div className="flex items-start gap-3">
-                      <UsersIcon className="w-5 h-5 text-primary mt-0.5" />
-                      <div className="w-full">
-                        <p className="font-semibold text-sm">Participantes</p>
-                        <p className="text-sm text-muted-foreground">
-                          {totalInscritos} / {event.max_inscricoes} vagas
-                        </p>
-                        <div className="w-full bg-slate-100 h-2 mt-2 rounded-full overflow-hidden">
-                          <div 
-                            className="bg-primary h-full transition-all duration-500" 
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="pt-4 space-y-3">
-                  {!isLoggedIn ? (
-                    <Button asChild className="w-full" variant="secondary">
-                      <Link href="/login">Faça Login para Participar</Link>
-                    </Button>
-                  ) : isSubscribed ? (
-                    <div className="space-y-2">
-                       <Button 
-                        className="w-full" 
-                        variant="destructive"
-                        onClick={handleCancel}
-                        disabled={isCanceling}
-                      >
-                        {isCanceling ? 'Cancelando...' : 'Cancelar Inscrição'}
-                      </Button>
-                      <p className="text-xs text-center text-muted-foreground">
-                        Sua vaga está garantida.
-                      </p>
-                    </div>
-                  ) : isSoldOut ? (
-                    <Button className="w-full" disabled variant="ghost">
-                      Ingressos Esgotados
-                    </Button>
-                  ) : !event.inscricao_aberta ? (
-                     <Button className="w-full" disabled variant="outline">
-                      Inscrições Fechadas
-                    </Button>
-                  ) : (
-                    <Button 
-                      className="w-full size-lg" 
-                      onClick={handleSubscribe}
-                      disabled={isSubscribing}
-                    >
-                      {isSubscribing ? 'Inscrevendo...' : 'Inscrever-se'}
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="flex items-center justify-center py-20">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600" />
         </div>
       </div>
+    );
+  }
+
+  if (!event) return null;
+
+  const spotsLeft = event.capacity - subscribers.length;
+  const canSubscribe =
+    event.subscriptionsOpen &&
+    spotsLeft > 0 &&
+    ["published", "in_progress"].includes(event.status);
+
+  // Participante pode cancelar inscrição apenas se:
+  // - Evento está publicado (não iniciado)
+  // - Inscrições estão abertas
+  const canUnsubscribe =
+    event.status === "published" && event.subscriptionsOpen;
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Header />
+
+      <main className="container mx-auto px-4 py-8">
+        <div className="mb-6">
+          <Link
+            href="/"
+            className="text-primary-600 hover:underline text-sm flex items-center gap-1"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
+            Voltar para Eventos
+          </Link>
+        </div>
+
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Detalhes do evento */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+              {event.banner && (
+                <div className="h-64 bg-gray-200">
+                  <img
+                    src={event.banner}
+                    alt={event.title}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+
+              <div className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <span
+                    className={cn(
+                      "px-3 py-1 text-sm font-medium rounded-full",
+                      EVENT_STATUS_COLORS[event.status]
+                    )}
+                  >
+                    {EVENT_STATUS_LABELS[event.status]}
+                  </span>
+                  {event.subscriptionsOpen ? (
+                    <span className="px-3 py-1 text-sm font-medium rounded-full bg-green-100 text-green-800">
+                      Inscrições Abertas
+                    </span>
+                  ) : event.status === "published" ? (
+                    <span className="px-3 py-1 text-sm font-medium rounded-full bg-amber-100 text-amber-800">
+                      Aguardando inscrições...
+                    </span>
+                  ) : (
+                    <span className="px-3 py-1 text-sm font-medium rounded-full bg-gray-100 text-gray-600">
+                      Inscrições Fechadas
+                    </span>
+                  )}
+                </div>
+
+                <h1 className="text-3xl font-bold text-gray-900 mb-4">
+                  {event.title}
+                </h1>
+
+                <p className="text-gray-600 whitespace-pre-wrap mb-6">
+                  {event.description}
+                </p>
+
+                <div className="grid sm:grid-cols-2 gap-6">
+                  <div className="flex items-start gap-3">
+                    <svg
+                      className="w-6 h-6 text-primary-600 mt-0.5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      />
+                    </svg>
+                    <div>
+                      <p className="font-medium text-gray-900">Data e Hora</p>
+                      <p className="text-gray-600">
+                        {format(new Date(event.date), "EEEE, dd 'de' MMMM 'de' yyyy", {
+                          locale: ptBR,
+                        })}
+                      </p>
+                      <p className="text-gray-600">
+                        {format(new Date(event.date), "'às' HH:mm", {
+                          locale: ptBR,
+                        })}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <svg
+                      className="w-6 h-6 text-primary-600 mt-0.5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                    </svg>
+                    <div>
+                      <p className="font-medium text-gray-900">Local</p>
+                      <p className="text-gray-600">{event.location}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <svg
+                      className="w-6 h-6 text-primary-600 mt-0.5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    <div>
+                      <p className="font-medium text-gray-900">Carga Horária</p>
+                      <p className="text-gray-600">{event.workload} horas</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <svg
+                      className="w-6 h-6 text-primary-600 mt-0.5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                      />
+                    </svg>
+                    <div>
+                      <p className="font-medium text-gray-900">Organizador</p>
+                      <p className="text-gray-600">{event.organizer?.name}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Lista de participantes */}
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                Participantes Inscritos ({subscribers.length}/{event.capacity})
+              </h2>
+
+              {subscribers.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">
+                  Seja o primeiro a se inscrever!
+                </p>
+              ) : (
+                <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  {subscribers.map((subscriber) => (
+                    <div
+                      key={subscriber.id}
+                      className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
+                    >
+                      <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
+                        <span className="text-primary-700 font-medium">
+                          {subscriber.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="overflow-hidden">
+                        <p className="font-medium text-gray-900 truncate">
+                          {subscriber.name}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Card de inscrição */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-lg shadow-sm p-6 sticky top-24">
+              <div className="text-center mb-6">
+                <p className="text-3xl font-bold text-gray-900">
+                  {spotsLeft}
+                </p>
+                <p className="text-gray-600">vagas disponíveis</p>
+              </div>
+
+              <div className="w-full bg-gray-200 rounded-full h-2 mb-6">
+                <div
+                  className="bg-primary-600 h-2 rounded-full transition-all"
+                  style={{
+                    width: `${(subscribers.length / event.capacity) * 100}%`,
+                  }}
+                />
+              </div>
+
+              {isAuthenticated ? (
+                isSubscribed ? (
+                  <div className="space-y-3">
+                    <div className="p-4 bg-green-50 rounded-lg text-center">
+                      <svg
+                        className="w-8 h-8 mx-auto text-green-600 mb-2"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                      <p className="font-medium text-green-800">
+                        Você está inscrito!
+                      </p>
+                    </div>
+                    {canUnsubscribe && (
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={handleUnsubscribe}
+                        disabled={isSubscribing}
+                      >
+                        Cancelar Inscrição
+                      </Button>
+                    )}
+                  </div>
+                ) : canSubscribe ? (
+                  <Button
+                    className="w-full"
+                    onClick={handleSubscribe}
+                    disabled={isSubscribing}
+                    isLoading={isSubscribing}
+                  >
+                    Inscrever-se
+                  </Button>
+                ) : (
+                  <div className={cn(
+                    "p-4 rounded-lg text-center",
+                    event.status === "published" ? "bg-amber-50" : "bg-gray-50"
+                  )}>
+                    <p className={event.status === "published" ? "text-amber-700" : "text-gray-600"}>
+                      {spotsLeft === 0
+                        ? "Evento lotado"
+                        : event.status === "published"
+                        ? "Aguardando abertura de inscrições..."
+                        : "Inscrições fechadas"}
+                    </p>
+                  </div>
+                )
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm text-gray-600 text-center">
+                    Faça login para se inscrever
+                  </p>
+                  <Link href="/auth/login" className="block">
+                    <Button className="w-full">Fazer Login</Button>
+                  </Link>
+                  <Link href="/auth/register" className="block">
+                    <Button variant="outline" className="w-full">
+                      Criar Conta
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </main>
     </div>
   );
 }
