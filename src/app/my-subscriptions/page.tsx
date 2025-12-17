@@ -103,9 +103,10 @@ export default function MySubscriptionsPage() {
               const event = subscription.event;
               if (!event) return null;
 
-              const canUnsubscribe = ["published", "in_progress"].includes(
-                event.status
-              );
+              // Participante pode cancelar se inscrições abertas e evento publicado ou em andamento
+              const canUnsubscribe =
+                event.subscriptionsOpen &&
+                ["published", "in_progress"].includes(event.status);
 
               return (
                 <div
@@ -114,7 +115,7 @@ export default function MySubscriptionsPage() {
                 >
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
                         <span
                           className={cn(
                             "px-2 py-1 text-xs font-medium rounded-full",
@@ -123,6 +124,17 @@ export default function MySubscriptionsPage() {
                         >
                           {EVENT_STATUS_LABELS[event.status]}
                         </span>
+                        {["published", "in_progress"].includes(event.status) && (
+                          event.subscriptionsOpen ? (
+                            <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                              Inscrições Abertas
+                            </span>
+                          ) : (
+                            <span className="px-2 py-1 text-xs font-medium rounded-full bg-amber-100 text-amber-800">
+                              Inscrições Fechadas
+                            </span>
+                          )
+                        )}
                         <span className="text-xs text-gray-500">
                           Inscrito em{" "}
                           {format(

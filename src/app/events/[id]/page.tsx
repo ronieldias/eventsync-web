@@ -110,11 +110,12 @@ export default function EventPage() {
     spotsLeft > 0 &&
     ["published", "in_progress"].includes(event.status);
 
-  // Participante pode cancelar inscrição apenas se:
-  // - Evento está publicado (não iniciado)
+  // Participante pode cancelar inscrição se:
   // - Inscrições estão abertas
+  // - Evento está publicado ou em andamento
   const canUnsubscribe =
-    event.status === "published" && event.subscriptionsOpen;
+    event.subscriptionsOpen &&
+    ["published", "in_progress"].includes(event.status);
 
   return (
     <div className="min-h-screen bg-gray-50">

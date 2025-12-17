@@ -52,7 +52,7 @@ export default function DashboardPage() {
     }
   }
 
-  // Filtrar e ordenar eventos alfabeticamente por título
+  // Filtrar e ordenar eventos do mais recente para o mais antigo
   const filteredEvents = useMemo(() => {
     const filtered =
       filter === "all"
@@ -60,7 +60,7 @@ export default function DashboardPage() {
         : events.filter((event) => event.status === filter);
 
     return [...filtered].sort((a, b) =>
-      a.title.localeCompare(b.title, "pt-BR", { sensitivity: "base" })
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
   }, [events, filter]);
 
